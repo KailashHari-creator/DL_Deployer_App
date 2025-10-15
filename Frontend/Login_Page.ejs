@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Page</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+    .login-card {
+      background: #fff; padding: 2rem; border-radius: 1rem;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      animation: fadeIn 0.6s ease-out;
+    }
+    .login-card h2 {
+      text-align: center; margin-bottom: 1.5rem; color: #333;
+    }
+    .input-group { margin-bottom: 1rem; }
+    .input-group label {
+      display: block; font-size: 0.9rem; margin-bottom: 0.3rem; color: #555;
+    }
+    .input-group input {
+      width: 100%; padding: 0.8rem; border: 1px solid #ccc;
+      border-radius: 0.5rem; font-size: 1rem; transition: 0.2s;
+    }
+    .input-group input:focus {
+      border-color: #667eea; outline: none;
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.3);
+    }
+    .btn {
+      width: 100%; padding: 0.9rem; font-size: 1rem;
+      border: none; border-radius: 0.5rem; cursor: pointer;
+      font-weight: bold; transition: background 0.3s;
+    }
+    .btn-primary {
+      background: #667eea; color: #fff;
+    }
+    .btn-primary:hover { background: #5563d6; }
+
+    /* Google button */
+    .btn-google {
+      background: #fff; color: #444;
+      border: 1px solid #ccc; display: flex; align-items: center; justify-content: center;
+      gap: 0.6rem; margin-top: 0.8rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .btn-google:hover { background: #f5f5f5; }
+    .btn-google img {
+      width: 20px; height: 20px;
+    }
+
+    .extra-links {
+      margin-top: 1rem; text-align: center; font-size: 0.9rem;
+    }
+    .extra-links a {
+      color: #667eea; text-decoration: none; margin: 0 0.5rem;
+    }
+    .extra-links a:hover { text-decoration: underline; }
+    .error { color: red; font-size: 0.85rem; margin-top: 0.3rem; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h2>Welcome Back</h2>
+    <form id="loginForm">
+      <div class="input-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="Enter your email" required />
+        <div class="error" id="emailError"></div>
+      </div>
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" required />
+        <div class="error" id="passwordError"></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Login</button>
+      <div id="g_id_onload"
+        data-client_id="130573390246-2ibmnbflcq0hk99svfrqv7om8addmg78.apps.googleusercontent.com"
+        data-callback="handleCredentialResponse"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard"></div>
+    </form>
+    <div class="extra-links">
+      <a href="#">Forgot Password?</a> | <a href="/register">Sign Up</a>
+    </div>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+  function handleCredentialResponse(response) {
+    // `response.credential` is the ID token from Google
+    fetch('/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: response.credential })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Google user:", data.email);
+        // Redirect to dashboard or store session
+        window.location.href = '/dashboard';
+      } else {
+        alert("Google login failed: " + data.message);
+      }
+    })
+    .catch(err => console.error("Error:", err));
+  }
+</script>
+  <script>
+    const form = document.getElementById('loginForm');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const emailError = document.getElementById('emailError');
+    const passwordError = document.getElementById('passwordError');
+    const googleBtn = document.getElementById('googleLogin');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      let valid = true;
+      emailError.textContent = '';
+      passwordError.textContent = '';
+
+      if (!email.value.includes('@')) {
+        emailError.textContent = 'Please enter a valid email.';
+        valid = false;
+      }
+      if (password.value.length < 6) {
+        passwordError.textContent = 'Password must be at least 6 characters.';
+        valid = false;
+      }
+
+      if (valid) {
+        fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email.value,
+                password: password.value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Login successful!');
+                window.location.href = '/dashboard';
+            } else {
+                alert(data.message || 'Login failed.');
+            }
+        })
+        .catch(() => {
+            alert('An error occurred. Please try again.');
+        });
+        form.reset();
+      }
+    });
+
+    googleBtn.addEventListener('click', function() {
+      alert('Redirecting to Google login... (Demo only)');
+      // In real apps, you’d redirect to your Google OAuth endpoint here
+      // window.location.href = '/auth/google';
+    });
+  </script>
+</body>
+</html>

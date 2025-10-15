@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DL Model Query Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+    body {
+      background: #f5f6fa; min-height: 100vh;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .dashboard {
+      width: 100%; max-width: 600px;
+      background: #fff; padding: 2rem;
+      border-radius: 1rem; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      animation: fadeIn 0.6s ease;
+    }
+    .dashboard h1 {
+      text-align: center; margin-bottom: 1.5rem; color: #333;
+    }
+    .input-group {
+      display: flex; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .input-group input {
+      flex: 1; padding: 0.9rem; font-size: 1rem;
+      border: 1px solid #ccc; border-radius: 0.5rem;
+      transition: 0.2s;
+    }
+    .input-group input:focus {
+      border-color: #667eea; outline: none;
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.3);
+    }
+    .btn {
+      padding: 0.9rem 1.4rem; font-size: 1rem;
+      background: #667eea; color: #fff; border: none;
+      border-radius: 0.5rem; cursor: pointer;
+      transition: background 0.3s;
+    }
+    .btn:hover { background: #5563d6; }
+    .response-box {
+      margin-top: 1rem; padding: 1rem;
+      border-radius: 0.5rem; min-height: 100px;
+      border: 1px solid #ddd; background: #fafafa;
+      font-size: 0.95rem; color: #444; white-space: pre-wrap;
+    }
+    .loading { color: #667eea; font-style: italic; }
+    video, canvas {
+      border: 2px solid #333;
+      border-radius: 8px;
+      margin: 10px;
+      width: 320px;
+      height: 240px;
+      object-fit: cover;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #4CAF50;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <h1>Query the Model</h1>
+    <div class="input-group">
+    </div>
+    <video id="video" autoplay></video>
+  <br>
+  <button id="capture">Capture Photo</button>
+
+  <!-- Captured image -->
+  <canvas id="canvas"></canvas>
+  <br>
+  <button id="upload">Upload Photo</button>
+    <div class="response-box" id="responseBox">Response will appear here...</div>
+  </div>
+
+  <script>
+    const queryInput = document.getElementById("queryInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const responseBox = document.getElementById("responseBox");
+
+    submitBtn.addEventListener("click", async () => {
+      const query = queryInput.value.trim();
+      if (!query) {
+        responseBox.textContent = "⚠️ Please enter a query first.";
+        return;
+      }
+
+      responseBox.innerHTML = "<span class='loading'>⏳ Querying model...</span>";
+
+      try {
+        const res = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+
+        if (!res.ok) throw new Error("Server error: " + res.status);
+
+        const data = await res.json();
+        responseBox.textContent = data.response || "✅ Got response but no content field.";
+      } catch (err) {
+        responseBox.textContent = "❌ Error: " + err.message;
+      }
+    });
+  </script>
+  <script>
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const captureBtn = document.getElementById("capture");
+  const uploadBtn = document.getElementById("upload");
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => video.srcObject = stream)
+    .catch(err => console.error("Camera error:", err));
+
+  captureBtn.addEventListener("click", () => {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  });
+
+  uploadBtn.addEventListener("click", () => {
+    canvas.toBlob(blob => {
+      const formData = new FormData();
+      formData.append("image", blob, "capture.png");
+
+      fetch("/query-model", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Model response:", data);
+        if (data.result && data.result.predictions) {
+          const preds = data.result.predictions;
+          responseBox.innerHTML = preds.map(p => `
+            <div style="
+              background:#f0f4ff;
+              border-radius:8px;
+              padding:10px;
+              margin-bottom:8px;
+            ">
+              <strong>${p.class_name}</strong> (ID: ${p.class_id})<br>
+              Probability: ${(p.probability * 100).toFixed(2)}%
+            </div>
+          `).join("");
+        } else {
+          responseBox.textContent = "⚠️ No predictions found.";
+        }
+      })
+      .catch(err => console.error("Error:", err));
+    }, "image/png");
+  });
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
