@@ -144,15 +144,17 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: email.value,
+                username: email.value,
                 password: password.value
             })
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                console.log('Login successful!');
+            if (data.message === 'Login successful') {
+                console.log("Logged in user:", data.email);
+                // Redirect to dashboard or store session
                 window.location.href = '/dashboard';
+                
             } else {
                 alert(data.message || 'Login failed.');
             }
