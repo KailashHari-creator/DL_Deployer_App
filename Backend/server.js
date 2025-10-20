@@ -246,7 +246,7 @@ const SERVER_JWT_EXPIRES_IN = "7d";
 // PostgreSQL connection setup
 const pool = new Pool({
   user: process.env.PGUSER,
-  host: process.env.PGHOST || 'localhost',
+  host: process.env.PGHOST,
   database: process.env.PGDATABASE,
   password: process.env.PGPASSWORD,
   port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
@@ -336,22 +336,22 @@ app.post('/login', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users WHERE username = $1 OR email = $1', [username]);
     if (result.rows.length === 0) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'No such user registered.' });
     }
     const user = result.rows[0];
 
     if (user.google_id && !user.password_hash) {
       return res.status(400).json({ message: 'This account is linked to Google. Please sign in with Google or set a password from account settings.' });
     }
-
-    const match = await compare(password, user.password_hash);
-    if (!match) return res.status(401).json({ message: 'Invalid username or password' });
+    console.log(user);
+    if (user.password != password)
+      return res.status(401).json({ message: 'Invalid username or password' });
 
     const serverToken = jwt.sign({ userId: user.id, email: user.email }, SERVER_JWT_SECRET, { expiresIn: SERVER_JWT_EXPIRES_IN });
-    res.json({ message: 'Login successful', token: serverToken });
+    res.status(200).json({ message: 'Login successful', token: serverToken });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error: ',err });
   }
 });
 
@@ -375,9 +375,9 @@ app.post('/register', async (req, res) => {
 
     if (!insert.rows.length) {
       // user already exists (by email)
-      return res.status(409).json({ message: 'User with this email already exists' });
+      alert("User has already been registered");
+      res.status(409).redirect('/login')
     }
-
     res.redirect('/'); // redirect to login page after successful registration
   } catch (err) {
     console.error('Register error:', err);
