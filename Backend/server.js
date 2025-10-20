@@ -250,6 +250,11 @@ const pool = new Pool({
   database: process.env.PGDATABASE,
   password: process.env.PGPASSWORD,
   port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
+  ssl: {
+    require: true,
+    rejectUnauthorized: false,
+  },
+
 });
 
 // parsers
